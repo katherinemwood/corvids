@@ -6,4 +6,4 @@ We recommend downloading the stand-alone version of the software. We currently h
 
 For help, check out the documentation or [this blog post](katherinemwood.github.io/post/corvids) to see how things work. For implementation details, please see the accompanying paper on PsyArXiv:
 
-Wilner, S. A., Wood, K., & Simons, D.J. (2018). Complete recovery of values in diophantine systems.
+Wilner, S. A., Wood, K., & Simons, D.J. (2018). Complete recovery of values in diophantine systems (CORVIDS).
