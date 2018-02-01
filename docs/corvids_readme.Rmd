@@ -157,7 +157,7 @@ To recreate values once the RecreateData object is initialzied, simply call the 
 ```{python eval=FALSE}
 from RecreateData import *
 
-rd = new RecreateData(min_score=1, max_score=7, num_samples=20, mean=4, variance=2)
+rd = RecreateData(min_score=1, max_score=7, num_samples=20, mean=4, variance=2)
 rd.recreateData()
 ```
 
