@@ -207,7 +207,7 @@ class RecreateData:
         variances_list = [self.variance]
 
         if not poss_vals:
-            poss_vals = range(min_score, max_score+1)
+            poss_vals = range(self.min_score, self.max_score+1)
         self.poss_vals = poss_vals
 
         if self.variance_precision or self.mean_precision > 0:
