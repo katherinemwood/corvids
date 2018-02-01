@@ -109,7 +109,7 @@ def multiprocessGetSolutionSpace(min_score, max_score, num_samples, mean_and_var
 
 class RecreateData:
     '''
-    An object which conatins all the relevant information about a given set of summary statistics and allows methods
+    An object which contains all the relevant information about a given set of summary statistics and allows methods
         to discover all potential solutions
     '''
 
@@ -562,7 +562,7 @@ class RecreateData:
         variances_list = [self.variance]
 
         if not poss_vals:
-            poss_vals = range(min_score, max_score+1)
+            poss_vals = range(self.min_score, self.max_score+1)
         self.poss_vals = poss_vals
 
         if self.variance_precision or self.mean_precision > 0:

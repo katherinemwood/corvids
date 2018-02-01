@@ -60,7 +60,7 @@ def recurse_find_first(a, b, covered=set()):
             if all([isinstance(x, int) for x in fl_sol]):
                 return b_temp
         if not dead_solution(a, b_temp):
-            sol = recurse_over_solution_path(a, b_temp, covered=set(covered))
+            sol = recurse_find_first(a, b_temp, covered=set(covered))
             if sol:
                 fl_sol = [soft_round(float(v)) for v in sol]
                 if all([isinstance(x, int) for x in fl_sol]):
