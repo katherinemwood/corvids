@@ -133,6 +133,10 @@ There are five different options under the `File` menu.
 
 `GUIMisc.py` implements functions required to support the GUI for the program.
 
+##Use
+
+These files are intended to be used as an API, rather than run directly; external scripts should import and call their methods.
+
 `RecreateDataGUI.py`, if run, provides all the same functionality as `RecreateData.py`, but provides a user interface with which to interact with the program.
 
 All of the critical features can be accessed by initiating and using a `RecreateData` object. This class accepts the following arguments:
@@ -151,6 +155,8 @@ All of the critical features can be accessed by initiating and using a `Recreate
 To recreate values once the RecreateData object is initialzied, simply call the `recreateData` method. 
 
 ```{python eval=FALSE}
+from RecreateData import *
+
 rd = new RecreateData(min_score=1, max_score=7, num_samples=20, mean=4, variance=2)
 rd.recreateData()
 ```
