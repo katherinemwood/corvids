@@ -344,7 +344,7 @@ class RecreateData:
             init_bases.append(basis)
             param_tuples.append(param_tuple)
         if self.debug:
-            print "Found " + str(len(param_tuples)) + " potentially viable mean/variance pairs."
+            print "Found " + str(len(param_tuples) + len(self.sols)) + " potentially viable mean/variance pairs."
             print "Manipulating Bases and Initial Vectors for Complete Search Guarantee"
 
         return init_bases, init_base_vecs, param_tuples
