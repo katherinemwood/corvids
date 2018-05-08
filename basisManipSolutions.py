@@ -25,7 +25,7 @@ def getMinimal(a):
         if val != 0:
             scale_val = val
             break
-    temp_a = map(soft_round, list_mul(a, 1.0/scale_val))
+    temp_a = map(soft_round, list_mul(temp_a, 1.0/scale_val))
     temp_a.reverse()
     return temp_a
 

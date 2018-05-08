@@ -189,7 +189,7 @@ class MenuItems(Frame):
 
     def initUI(self):
 
-        self.parent.title("CORVIDS Vers 1.0")
+        self.parent.title("CORVIDS Vers 2.0")
 
         self.menubar = Menu(self.parent)
         self.parent.config(menu=self.menubar)

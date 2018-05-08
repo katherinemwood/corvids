@@ -2,7 +2,7 @@ __author__ = 'Sean Wilner'
 from findSolutionsWithManipBasis import *
 from sympy import Matrix
 from decimal import  Decimal
-import math, random, itertools, functools
+import math, random, itertools, functools, collections
 
 from mpl_toolkits.mplot3d import Axes3D
 from sys import platform as sys_pf
@@ -109,15 +109,18 @@ def multiprocessGetSolutionSpace(min_score, max_score, num_samples, mean_and_var
 
 class RecreateData:
     '''
-    An object which contains all the relevant information about a given set of summary statistics and allows methods
+    An object which conatins all the relevant information about a given set of summary statistics and allows methods
         to discover all potential solutions
     '''
 
 
     def __init__(self, min_score, max_score, num_samples, mean, variance, debug=True, mean_precision=0.0, variance_precision=0.0):
 
+        self.simpleData = defaultdict(list)
         self.debug = debug
+        self.absolute_min = min_score
         self.min_score = min_score
+        self.absolute_max = max_score
         self.max_score = max_score
         self.num_samples = num_samples
         self.mean = mean
@@ -131,21 +134,140 @@ class RecreateData:
         self.variance_precision = variance_precision
         self.extended_poss_vals = None
 
+    def adjust_sol(self, solution, num_adjustments):
+        # print "hoping for ", num_adjustments
+        if num_adjustments == 0:
+            return solution
+        new_sol = deepcopy(solution)
+        new_sol.sort()
+        num_adjusted = 0
+        while num_adjusted < num_adjustments:
+            correction = num_adjustments - num_adjusted
+            items = list(set(new_sol))
+            items.sort()
+            if correction == 1:
+                candidates = [item for item, count in collections.Counter(new_sol).items() if count > 1 and (item + 1) in self.poss_vals and (item - 1) in self.poss_vals]
+                if len(candidates)==0:
+                    # print "None1 was encountered ", num_adjustments
+                    return None
+                potential_diff = candidates[0]
+                new_sol.remove(potential_diff)
+                new_sol.remove(potential_diff)
+                new_sol.append(potential_diff + 1)
+                new_sol.append(potential_diff - 1)
+                new_sol.sort()
+                return new_sol
+            potential_diffs = []
+            temp_items = []
+            if len(new_sol)>len(items):
+                for val in items:
+                    if new_sol.count(val) == 1:
+                        continue
+                    temp_items.append(val)
+            items.extend(temp_items)
+            items.sort()
+            for val_1, val_2 in itertools.combinations(items, 2):
+                #since we sorted items, val_1 is the smaller one
+                for size in xrange(1, min((max(self.poss_vals) - val_2), val_1 - min(self.poss_vals))):
+                    if val_1 - size not in self.poss_vals or val_2 + size not in self.poss_vals:
+                        continue
+                    adjustment = (math.fabs(val_1 - val_2)*size + size**2)
+                    if adjustment <= correction:
+                        potential_diffs.append((adjustment, val_1, val_2, size))
+            # if len(potential_diffs) == 0:
+            #     candidates = [item for item, count in collections.Counter(new_sol).items() if count > 1 and (item + 1) in self.poss_vals and (item - 1) in self.poss_vals]
+            #     if len(candidates)==0:
+            #         return None
+            #     candidate = candidates[0]
+            #     new_sol.remove(candidate)
+            #     new_sol.remove(candidate)
+            #     new_sol.append(candidate + 1)
+            #     new_sol.append(candidate - 1)
+            #     new_sol.sort()
+            #     num_adjusted += 1
+            #     continue
+            if len(potential_diffs) == 0:
+                return
+            potential_diffs.sort()
+            potential_diff = potential_diffs[-1] #Greed algorithm here to choose the biggest adjustment possible
+            num_adjusted += potential_diff[0]
+            new_sol.remove(potential_diff[1])
+            new_sol.remove(potential_diff[2])
+            new_sol.append(potential_diff[2] + potential_diff[3])
+            new_sol.append(potential_diff[1] - potential_diff[3])
+            new_sol.sort()
+        return new_sol
 
-    def validMeansVariances(self):
+
+
+
+
+
+
+    def validMeansVariances(self, findFirst):
+        solutions = defaultdict(list)
         means_list = []
         for i in xrange(int(math.ceil((self.mean - self.mean_precision)*self.num_samples)),
                         int(math.floor((self.mean + self.mean_precision)*self.num_samples))+1):
             means_list.append(float(i)/self.num_samples)
-        variances_list = []
-        for i in xrange(int(math.ceil((self.variance - self.variance_precision)*((self.num_samples-1)*self.num_samples**2))),
-                        int(math.floor((self.variance + self.variance_precision)*((self.num_samples-1)*self.num_samples**2)))+1):
-            variances_list.append(float(i)/((self.num_samples - 1)*self.num_samples**2))
+        mean_variances = []
+        step_size = 2*self.num_samples**2
+        for m in means_list:
+            # construct the minimum variance (not within our range or anything, we are just going to use this for granularity purposes)
+            initial_var = ((self.num_samples - m*self.num_samples%self.num_samples)*(math.floor(m)-m)**2 +
+                           (m*self.num_samples%self.num_samples)*(math.ceil(m)-m)**2)/(self.num_samples-1)
+            initial_mean_valid = [int(math.floor(m))] * (int((self.num_samples - m*self.num_samples%self.num_samples))) + [int(math.ceil(m))] * int((m*self.num_samples%self.num_samples))
+            # initial_var = np.std([int(math.floor(m))] * (int((self.num_samples - m*self.num_samples%self.num_samples))) + [int(math.ceil(m))] * int((m*self.num_samples%self.num_samples)), ddof=1, dtype=np.float128)**2
+            # print "Initial Variance: " + str(initial_var) + " with " + str((self.num_samples - m*self.num_samples%self.num_samples)) + " values at " + str(math.floor(m)) + " and "+ str((m*self.num_samples%self.num_samples)) + " values at "  + str((math.ceil(m)))
+            initial_adjusted_var = initial_var *(self.num_samples - 1)*self.num_samples**2
+            # print "Initial Adjusted: " + str(initial_adjusted_var)
+            i = int(math.ceil((self.variance - self.variance_precision)*((self.num_samples-1)*self.num_samples**2)))
+            while i <(math.floor((self.variance + self.variance_precision)*((self.num_samples-1)*self.num_samples**2)))+1:
+                if (i-initial_adjusted_var)%step_size != 0:
+                    i +=step_size - (i-initial_adjusted_var)%step_size
+                    continue
+                mean_variances.append((m, float(i)/((self.num_samples - 1)*self.num_samples**2)))
+                solution = self.adjust_sol(initial_mean_valid, int((i-initial_adjusted_var)/step_size))
+                if solution:
+                    solutions[(m, float(i)/((self.num_samples - 1)*self.num_samples**2))].append(solution)
+                i +=step_size
+        if findFirst:
+            if len(solutions) > 0:
+                self.simpleData.update(solutions)
+                if self.debug:
+                    print str(sum([len(x) for x in self.simpleData.itervalues()])) + " unique solutions found simulatenously (not neccessarily complete!!)."
+                    index = 0
+                    for params in self.simpleData:
+                        if index > 100:
+                            break
+                        print "At mean, variance", params, ":"
+                        for simpleSol in self.simpleData[params]:
+                            if index > 100:
+                                break
+                            index += 1
+                            print simpleSol
 
+                print "Done."
+                return
         if self.debug:
-            print str(len(means_list) * len(variances_list)) + " possible mean and variance combinations to consider."
+            print "Total potential mean/variance pairs to consider: " + str(len(mean_variances))
+        return mean_variances
 
-        return means_list, variances_list
+
+    # def validMeansVariances(self):
+    #     means_list = []
+    #     for i in xrange(int(math.ceil((self.mean - self.mean_precision)*self.num_samples)),
+    #                     int(math.floor((self.mean + self.mean_precision)*self.num_samples))+1):
+    #         means_list.append(float(i)/self.num_samples)
+    #     variances_list = []
+    #     for i in xrange(int(math.ceil((self.variance - self.variance_precision)*((self.num_samples-1)*self.num_samples**2))),
+    #                     int(math.floor((self.variance + self.variance_precision)*((self.num_samples-1)*self.num_samples**2)))+1):
+    #         variances_list.append(float(i)/((self.num_samples - 1)*self.num_samples**2))
+    #
+    #     if self.debug:
+    #         print str(len(means_list) * len(variances_list)) + " possible mean and variance combinations to consider."
+    #
+    #     return means_list, variances_list
 
     def getSolutionSpace(self, check_val=None, poss_vals=None):
 
@@ -154,7 +276,10 @@ class RecreateData:
         variance = self.variance
 
         if not poss_vals:
-            poss_vals = xrange(self.min_score, self.max_score+1)
+            poss_vals = xrange(self.absolute_min, self.absolute_max+1)
+        else:
+            self.min_score = min(poss_vals)
+            self.max_score = max(poss_vals)
 
         mean *=self.num_samples
         mean = int(round(mean))
@@ -207,15 +332,21 @@ class RecreateData:
         variances_list = [self.variance]
 
         if not poss_vals:
-            poss_vals = range(self.min_score, self.max_score+1)
+            poss_vals = range(self.absolute_min, self.absolute_max+1)
+        else:
+            self.min_score = min(poss_vals)
+            self.max_score = max(poss_vals)
         self.poss_vals = poss_vals
 
-        if self.variance_precision or self.mean_precision > 0:
-            means_list, variances_list = self.validMeansVariances()
 
-        mean_variance_pairs = []
-        for pair in itertools.product(means_list, variances_list):
-            mean_variance_pairs.append((pair[0], pair[1]))
+        # if self.variance_precision or self.mean_precision > 0:
+        #     means_list, variances_list = self.validMeansVariances()
+        #
+        # mean_variance_pairs = []
+        # for pair in itertools.product(means_list, variances_list):
+        #     mean_variance_pairs.append((pair[0], pair[1]))
+
+        mean_variance_pairs = self.validMeansVariances(find_first)
 
         return mean_variance_pairs
 
@@ -344,9 +475,8 @@ class RecreateData:
             init_bases.append(basis)
             param_tuples.append(param_tuple)
         if self.debug:
-            print "Found " + str(len(param_tuples) + len(self.sols)) + " potentially viable mean/variance pairs."
+            print "Found " + str(len(param_tuples) + len(self.sols)) + " potentially viable mean/variance pairs." #Get Katherine to UPDATE this!
             print "Manipulating Bases and Initial Vectors for Complete Search Guarantee"
-
         return init_bases, init_base_vecs, param_tuples
 
     def _findAll_piece_2_multi_proc(self, init_bases, init_base_vecs, param_tuples, check_val=None, poss_vals=None, multiprocess=True, find_first=False):
@@ -465,8 +595,8 @@ class RecreateData:
             for basis_and_init in bases_and_inits:
                 base_vecs.append(basis_and_init[1])
                 bases.append(basis_and_init[0])
-            print bases[0][0]
             sol = multiprocess_recurse_find_first(bases, base_vecs, covered=set())
+            # print sol
         else:
             for solution_space in solution_spaces:
                 if solution_space == None:
@@ -562,7 +692,10 @@ class RecreateData:
         variances_list = [self.variance]
 
         if not poss_vals:
-            poss_vals = range(self.min_score, self.max_score+1)
+            poss_vals = range(self.absolute_min, self.absolute_max+1)
+        else:
+            self.min_score = min(poss_vals)
+            self.max_score = max(poss_vals)
         self.poss_vals = poss_vals
 
         if self.variance_precision or self.mean_precision > 0:
@@ -951,6 +1084,12 @@ class RecreateData:
 
     def graphData(self, max_samples=40):
 
+        # if self.simpleData and not self.sols:
+        #     self.sols = {}
+        #     for key, value in self.simpleData.iteritems():
+        #         sol =
+
+
         if not self.sols:
             if self.debug:
                 print "No solutions to run analysis over.  NB: graphData() must be run before analyzeSkew()"
@@ -978,7 +1117,7 @@ class RecreateData:
         dz = []
         for index1, sol in enumerate(sols):
             for index2,val in enumerate(sol):
-                ypos.append(index2 + .5)
+                ypos.append(self.poss_vals[index2] - .5)
                 xpos.append(index1 + .5) #added + .5
                 dz.append(val)
 
@@ -1003,7 +1142,6 @@ class RecreateData:
             if self.debug:
                 print "No solutions to run analysis over.  NB: graphData() must be run before analyzeSkew()"
             raise ValueError
-        self.simpleData = defaultdict(list)
         for param, sol_list in self.sols.iteritems():
             for sol in sol_list:
                 simple_sol = []
@@ -1020,28 +1158,29 @@ if __name__ == "__main__":
 
     import sys
 
-    sys.stdout.write('Minimum Value: ')
-    min_score = int(raw_input())
-    print
+    # sys.stdout.write('Minimum Value: ')
+    # min_score = int(raw_input())
+    # print
+    #
+    # sys.stdout.write('Maximum Value: ')
+    # max_score = int(raw_input())
+    # print
+    #
+    # sys.stdout.write('Number of Samples: ')
+    # num_samples = int(raw_input())
+    # print
+    #
+    # sys.stdout.write('Mean Value: ')
+    # mean = float(eval(raw_input()))
+    # print
+    #
+    # sys.stdout.write('Variance Value: ')
+    # variance = float(eval(raw_input()))
+    # print
 
-    sys.stdout.write('Maximum Value: ')
-    max_score = int(raw_input())
-    print
-
-    sys.stdout.write('Number of Samples: ')
-    num_samples = int(raw_input())
-    print
-
-    sys.stdout.write('Mean Value: ')
-    mean = float(eval(raw_input()))
-    print
-
-    sys.stdout.write('Variance Value: ')
-    variance = float(eval(raw_input()))
-    print
-
-    RD = RecreateData(min_score, max_score, num_samples, mean, variance, mean_precision=0.0, variance_precision=0.0)
-    print RD.recreateData(multiprocess=False, find_first=False, poss_vals=[1, 2, 3])
+    RD = RecreateData(1,7,10,3,4)#(min_score, max_score, num_samples, mean, variance, mean_precision=0.0, variance_precision=0.0)
+    RD.recreateData(multiprocess=True, find_first=False)
+    print RD.getDataSimple()
 
     # for sol_set in RD.sols.values():
     #     for sol in sol_set:

@@ -142,6 +142,9 @@ class CoreGUI(object):
         self.out = StdoutRedirector(self.text_box)
         sys.stdout = self.out
 
+    #TODO: Consider threading main calls to avoid GUI lock-up -- low priority.
+    #   Would need to use a Queue and a watcher deamon to keep track of when to update the GUI's stage.
+
     def main(self):
         '''
         The body of the execution.  It is split up so that the GUI freezes as little as possible, but it will still
@@ -174,12 +177,21 @@ class CoreGUI(object):
                                )
         # self.rd.recreateData(check_val=self.getForcedVals(), poss_vals=self.poss_vals.getPossVals(),
         #                             multiprocess=True, find_first=(not bool(self.find_all.get())))
+
         self.parent.after(5, self.main_2)
 
     def main_2(self):
         debug = bool(self.debug.get())
         mean_var_pairs = self.rd._recreateData_piece_1(check_val=self.getForcedVals(), poss_vals=self.poss_vals.getPossVals(),
                                     multiprocess=True, find_first=(bool(self.find_first.get())))
+        if not mean_var_pairs:
+            debug = bool(self.debug.get())
+            self.start_button.config(text='Start')
+            self.start_button.config(command=self.main)
+            self.graph_button.grid()
+            self.start_button.grid_remove()
+            self.start_button.grid(row=15, columnspan=1, column=0)
+            return
         partial_3 = wrapped_partial(self.main_3, mean_var_pairs)
         self.parent.after(5, partial_3)
 
