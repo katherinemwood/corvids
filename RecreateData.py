@@ -1084,49 +1084,70 @@ class RecreateData:
 
     def graphData(self, max_samples=40):
 
-        # if self.simpleData and not self.sols:
-        #     self.sols = {}
-        #     for key, value in self.simpleData.iteritems():
-        #         sol =
-
-
-        if not self.sols:
-            if self.debug:
-                print "No solutions to run analysis over.  NB: graphData() must be run before analyzeSkew()"
-            raise ValueError
-
-
-
-
-        sols = []
-        all_sols = []
-        for sol_set in self.sols.values():
-            all_sols.extend(sol_set)
-        if max_samples == -1:
-            sols = all_sols
-        else:
-            sols = random.sample(all_sols, min(max_samples, len(all_sols)))
-        if len(sols) == 1:
-            sols.append([0]*len(sols[0]))
-
         fig = plt.figure()
         ax1 = fig.add_subplot(111, projection='3d')
 
-        xpos = []
-        ypos = []
-        dz = []
-        for index1, sol in enumerate(sols):
-            for index2,val in enumerate(sol):
-                ypos.append(self.poss_vals[index2] - .5)
-                xpos.append(index1 + .5) #added + .5
-                dz.append(val)
+        if not self.sols:
+            if not self.simpleData:
+                if self.debug:
+                    print "No solutions to run analysis over.  NB: graphData() must be run before analyzeSkew()"
+                raise ValueError
+            sols = []
+            all_sols = []
+            for sol_set in self.simpleData.values():
+                for sol in sol_set:
+                    all_sols.append(sol)
+            if max_samples == -1:
+                sols = all_sols
+            else:
+                sols = random.sample(all_sols, min(max_samples, len(all_sols)))
+            if len(sols) == 1:
+                sols.append([0]*len(sols[0]))
+            xpos = []
+            ypos = []
+            dz = []
+            for index1, sol in enumerate(sols):
+                counter = collections.Counter(sol)
+                for val in self.poss_vals:
+                    ypos.append(val - .5)
+                    xpos.append(index1 + .5) #added + .5
+                    dz.append(counter[val])
 
-        num_elements = len(xpos)
-        zpos = [0]*num_elements
-        dx = np.ones(num_elements)
-        dy = np.ones(num_elements)
 
-        plt.ylim(min(ypos), max(ypos) + 1)
+            num_elements = len(xpos)
+            zpos = [0]*num_elements
+            dx = np.ones(num_elements)
+            dy = np.ones(num_elements)
+
+            plt.ylim(min(ypos), max(ypos) + 1)
+
+        else:
+            sols = []
+            all_sols = []
+            for sol_set in self.sols.values():
+                all_sols.extend(sol_set)
+            if max_samples == -1:
+                sols = all_sols
+            else:
+                sols = random.sample(all_sols, min(max_samples, len(all_sols)))
+            if len(sols) == 1:
+                sols.append([0]*len(sols[0]))
+
+            xpos = []
+            ypos = []
+            dz = []
+            for index1, sol in enumerate(sols):
+                for index2,val in enumerate(sol):
+                    ypos.append(self.poss_vals[index2] - .5)
+                    xpos.append(index1 + .5) #added + .5
+                    dz.append(val)
+
+            num_elements = len(xpos)
+            zpos = [0]*num_elements
+            dx = np.ones(num_elements)
+            dy = np.ones(num_elements)
+
+            plt.ylim(min(ypos), max(ypos) + 1)
 
         ax1.bar3d(xpos, ypos, zpos, dx, dy, dz, color='#00ceaa')
         ax1.set_xlabel('Solution Number')

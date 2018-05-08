@@ -151,6 +151,9 @@ class CoreGUI(object):
         freeze during several portions (some potentially quite long)
         :return:
         '''
+        if self.num_subjects.get() == 0:
+            print "Need to specify a \"Number of Subjects\" > 0"
+            return
         self.start_button.config(text='Running...')
         self.start_button.config(command=None)
         self.graph_button.grid_remove()
@@ -309,12 +312,14 @@ class CoreGUI(object):
         from PIL import ImageTk
 
         self.parent.lift()
-        # image = Image.open("Corvid.png")
-        # help_image = Image.open("Question.png")
-        # photo = ImageTk.PhotoImage(image)
-        # help_photo = ImageTk.PhotoImage(help_image)
-        # img = PhotoImage(file="Corvid.png")
-        # self.parent.tk.call('wm', 'iconphoto', self.parent._w, photo)
+        from sys import platform as sys_pf
+        if sys_pf != 'darwin':
+            image = Image.open(self.doc_dir + os.sep  + "Corvid.png")
+            # help_image = Image.open("Question.png")
+            photo = ImageTk.PhotoImage(image)
+            # help_photo = ImageTk.PhotoImage(help_image)
+            # img = PhotoImage(file="Corvid.png")
+            self.parent.tk.call('wm', 'iconphoto', self.parent._w, photo)
         self.parent.wm_title(string="CORVIDS")
 
         self.window = MenuItems(self.parent)
@@ -578,11 +583,14 @@ def root_closer(root, directory_name=None):
         root.quit()
 
 if __name__ == "__main__":
+    mp.freeze_support()
     import shutil, tempfile
     directory_name = tempfile.mkdtemp()
-    shutil.copy(resource_path("docs/corvids_readme.html"), directory_name)
-    shutil.copy(resource_path("docs/Corvid.png"), directory_name)
-    shutil.copy(resource_path("docs/sample_fig.png"), directory_name)
+    file_sep = os.sep
+    os.makedirs(directory_name + file_sep + "docs")
+    shutil.copy(resource_path("docs" + file_sep + "corvids_readme.html"), directory_name)
+    shutil.copy(resource_path("docs" + file_sep + "Corvid.png"), directory_name)
+    shutil.copy(resource_path("docs" + file_sep + "sample_fig.png"), directory_name)
 
     root = Tk()
     root.protocol("WM_DELETE_WINDOW", wrapped_partial(root_closer, root, directory_name))
