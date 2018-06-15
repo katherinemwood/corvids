@@ -543,7 +543,7 @@ class RecreateData:
         return self.sols
 
 
-    def _findFirst_piece_1(self, solution_spaces, check_val=None, poss_vals=None, multiprocess=True, find_first=False):
+    def _findFirst_piece_1(self, solution_spaces, check_val=None, poss_vals=None, multiprocess=True, find_first=True):
         base_vecs = []
         bases = []
 
@@ -688,376 +688,391 @@ class RecreateData:
 
     def recreateData(self, check_val=None, poss_vals=None, multiprocess=True, find_first=False):
 
-        means_list = [self.mean]
-        variances_list = [self.variance]
+        mean_var_pairs = self._recreateData_piece_1(check_val=check_val, poss_vals=poss_vals, multiprocess=multiprocess, find_first=find_first)
 
-        if not poss_vals:
-            poss_vals = range(self.absolute_min, self.absolute_max+1)
-        else:
-            self.min_score = min(poss_vals)
-            self.max_score = max(poss_vals)
-        self.poss_vals = poss_vals
-
-        if self.variance_precision or self.mean_precision > 0:
-            means_list, variances_list = self.validMeansVariances()
-
-        mean_variance_pairs = []
-        for pair in itertools.product(means_list, variances_list):
-            mean_variance_pairs.append((pair[0], pair[1]))
-
-        if self.debug:
-            print str(len(mean_variance_pairs)) + " total mean and variance pairs to check."
-
-        if multiprocess:
-            pool = mp.Pool()
-            func = functools.partial(multiprocessGetSolutionSpace, self.min_score, self.max_score, self.num_samples,
-                                     check_val=check_val, poss_vals=poss_vals, debug=self.debug)
-            solution_spaces = pool.map(func, mean_variance_pairs)
-            pool.close()
-            pool.join()
-        else:
-            solution_spaces = []
-            for mean_variance_pair in mean_variance_pairs:
-                solution_spaces.append(multiprocessGetSolutionSpace(self.min_score, self.max_score, self.num_samples,
-                                                                    mean_variance_pair,
-                                                                    check_val=check_val, poss_vals=poss_vals,
-                                                                    debug=self.debug))
-        # try:
-        #     base_vec, basis, _, _, _ = self.getSolutionSpace(check_val=check_val, poss_vals=poss_vals)
-        #     if self.debug:
-        #         print "At least one solution exists (possibly invalid due to negative values)"
-        # except TypeError as E:
-        #     return None
+        if not mean_var_pairs:
+            return None
+        solution_spaces = self._recreateData_piece_2(mean_var_pairs, check_val=check_val, poss_vals=poss_vals, multiprocess=multiprocess, find_first=find_first)
 
         if find_first:
-            base_vecs = []
-            bases = []
-
-            if multiprocess:
-                init_base_vecs = []
-                init_bases = []
-                for solution_space in solution_spaces:
-                    if solution_space == None:
-                        continue
-                    base_vec, basis, _, _, param_tuple = solution_space
-                    if len(basis) == 0:
-                        if not any([val<0 for val in base_vec._mat]):
-                            sol = base_vec._mat
-                            temp_sol =[int(v) for v in sol]
-                            if check_val:
-                                if isinstance(check_val,int):
-                                    try:
-                                        temp_sol[poss_vals.index(check_val)]+=1
-                                    except ValueError:
-                                        temp_sol.append(1)
-                                        poss_vals.append(check_val)
-                                        # temp_sol[poss_vals.index(val)]=1
-
-                                elif isinstance(check_val, list):
-                                    for val in check_val:
-                                        try:
-                                            temp_sol[poss_vals.index(val)]+=1
-                                        except ValueError:
-                                            temp_sol.append(1)
-                                            poss_vals.append(val)
-                                            # temp_sol[poss_vals.index(val)]=1
-                                elif isinstance(check_val, dict):
-                                    for val, num in check_val.iteritems():
-                                        try:
-                                            temp_sol[poss_vals.index(val)]+=1
-                                        except ValueError:
-                                            poss_vals.append(val)
-                                            temp_sol.append(1)
-                                            # temp_sol[poss_vals.index(val)]=1
-                                else:
-                                    raise TypeError
-
-                            self.sols[param_tuple] = [temp_sol]
-                            self.extended_poss_vals = poss_vals
-                            return self.sols
-
-                    init_base_vecs.append(base_vec)
-                    init_bases.append(basis)
-                pool = mp.Pool()
-                bases_and_inits = pool.map(multiprocessGetManipBases, zip(init_bases, init_base_vecs))
-                for basis_and_init in bases_and_inits:
-                    base_vecs.append(basis_and_init[1])
-                    bases.append(basis_and_init[0])
-                sol = multiprocess_recurse_find_first(bases, base_vecs, covered=set())
-            else:
-                for solution_space in solution_spaces:
-                    if solution_space == None:
-                        continue
-                    base_vec, basis, _, _, param_tuple = solution_space
-                    if len(basis) == 0:
-                        if not any([val<0 for val in base_vec._mat]):
-                            sol = base_vec._mat
-                            temp_sol =[int(v) for v in sol]
-                            if check_val:
-                                if isinstance(check_val,int):
-                                    try:
-                                        temp_sol[poss_vals.index(check_val)]+=1
-                                    except ValueError:
-                                        temp_sol.append(1)
-                                        poss_vals.append(check_val)
-                                        # temp_sol[poss_vals.index(val)]=1
-
-                                elif isinstance(check_val, list):
-                                    for val in check_val:
-                                        try:
-                                            temp_sol[poss_vals.index(val)]+=1
-                                        except ValueError:
-                                            temp_sol.append(1)
-                                            poss_vals.append(val)
-                                            # temp_sol[poss_vals.index(val)]=1
-                                elif isinstance(check_val, dict):
-                                    for val, num in check_val.iteritems():
-                                        try:
-                                            temp_sol[poss_vals.index(val)]+=1
-                                        except ValueError:
-                                            poss_vals.append(val)
-                                            temp_sol.append(1)
-                                            # temp_sol[poss_vals.index(val)]=1
-                                else:
-                                    raise TypeError
-                            self.sols[param_tuple] = [temp_sol]
-                            self.extended_poss_vals = poss_vals
-                            return self.sols
-                    manip_basis, base_vec = getManipBasis(basis, base_vec)
-                    manip_base_vec = forced_neg_removal(manip_basis, base_vec)
-                    base_vecs.append(manip_base_vec)
-                    bases.append(manip_basis)
-
-                for basis, base_vec in zip(bases, base_vecs):
-                    sol = recurse_find_first(basis, base_vec)
-                    if sol:
-                        break
-            if not sol:
-                self.extended_poss_vals = poss_vals
-                return None
-            # print "Solution: ", type(sol[0]), sol
-            sol = [int(v) for v in sol]
-            # print "Solution: ", type(sol[0]), sol
-
-            if check_val:
-                if isinstance(check_val,int):
-                    try:
-                        sol[poss_vals.index(check_val)]+=1
-                    except ValueError:
-                        sol.append(1)
-                        poss_vals.append(check_val)
-                        # temp_sol[poss_vals.index(val)]=1
-
-                elif isinstance(check_val, list):
-                    for val in check_val:
-                        try:
-                            sol[poss_vals.index(val)]+=1
-                        except ValueError:
-                            sol.append(1)
-                            poss_vals.append(val)
-                            # temp_sol[poss_vals.index(val)]=1
-                elif isinstance(check_val, dict):
-                    for val, num in check_val.iteritems():
-                        try:
-                            sol[poss_vals.index(val)]+=1
-                        except ValueError:
-                            poss_vals.append(val)
-                            sol.append(1)
-                            # temp_sol[poss_vals.index(val)]=1
-                else:
-                    raise TypeError
-
-            self.sols = {'_':[sol]}
-            if self.debug:
-                print "Done."
-            self.extended_poss_vals = poss_vals
-            return self.sols
-
-        self.sols = {}
-        init_base_vecs = []
-        init_bases = []
-        param_tuples = []
-        if multiprocess:
-            for solution_space in solution_spaces:
-                if solution_space == None:
-                    continue
-                base_vec, basis, _, _, param_tuple = solution_space
-                if len(basis) == 0:
-                    if not any([val<0 for val in base_vec._mat]):
-                        sol = base_vec._mat
-                        temp_sol =[int(v) for v in sol]
-                        if check_val:
-                            if isinstance(check_val,int):
-                                try:
-                                    temp_sol[poss_vals.index(check_val)]+=1
-                                except ValueError:
-                                    temp_sol.append(1)
-                                    poss_vals.append(check_val)
-                                    # temp_sol[poss_vals.index(val)]=1
-
-                            elif isinstance(check_val, list):
-                                for val in check_val:
-                                    try:
-                                        temp_sol[poss_vals.index(val)]+=1
-                                    except ValueError:
-                                        temp_sol.append(1)
-                                        poss_vals.append(val)
-                                        # temp_sol[poss_vals.index(val)]=1
-                            elif isinstance(check_val, dict):
-                                for val, num in check_val.iteritems():
-                                    try:
-                                        temp_sol[poss_vals.index(val)]+=1
-                                    except ValueError:
-                                        poss_vals.append(val)
-                                        temp_sol.append(1)
-                                        # temp_sol[poss_vals.index(val)]=1
-                            else:
-                                raise TypeError
-                        self.sols[param_tuple] = [temp_sol]
-
-                    continue
-                init_base_vecs.append(base_vec)
-                init_bases.append(basis)
-                param_tuples.append(param_tuple)
-            pool = mp.Pool()
-            if self.debug:
-                print "Found " + str(len(param_tuples)) + " potentially viable mean/variance pairs found."
-                print "Manipulating Bases and Initial Vectors for Complete Search Guarantee"
-            bases_and_inits = pool.map(multiprocessGetManipBases, zip(init_bases, init_base_vecs))
-            for basis_and_init, param_tuple in zip(bases_and_inits, param_tuples):
-                if self.debug:
-                    print "Checking for solutions at: " + str(param_tuple)
-                manip_base_vec = basis_and_init[1]
-                manip_basis = basis_and_init[0]
-                single_set_sols = multiprocess_recurse_over_solution_path(manip_basis, manip_base_vec)
-                temp_sols = []
-                for sol in single_set_sols:
-                    fl_sol = [float(v) for v in sol]
-                    if not all([x.is_integer() for x in fl_sol]):
-                        continue
-                    temp_sols.append([int(v) for v in fl_sol])
-                    if check_val:
-                        if isinstance(check_val,int):
-                            try:
-                                temp_sols[-1][poss_vals.index(check_val)]+=1
-                            except ValueError:
-                                for temp_sol in temp_sols:
-                                    temp_sol.append(0)
-                                poss_vals.append(check_val)
-                                temp_sols[-1][poss_vals.index(check_val)]=1
-
-                        elif isinstance(check_val, list):
-                            for val in check_val:
-                                try:
-                                    temp_sols[-1][poss_vals.index(val)]+=1
-                                except ValueError:
-                                    for temp_sol in temp_sols:
-                                        temp_sol.append(0)
-                                    poss_vals.append(val)
-                                    temp_sols[-1][poss_vals.index(val)]=1
-                        elif isinstance(check_val, dict):
-                            for val, num in check_val.iteritems():
-                                try:
-                                    temp_sols[-1][poss_vals.index(val)]+=1
-                                except ValueError:
-                                    poss_vals.append(val)
-                                    for temp_sol in temp_sols:
-                                        temp_sol.append(0)
-                                    temp_sols[-1][poss_vals.index(val)]=1
-                        else:
-                            raise TypeError
-                self.sols[param_tuple] = temp_sols
+            return self._findFirst_piece_1(solution_spaces, check_val=check_val, poss_vals=poss_vals, multiprocess=multiprocess, find_first=find_first)
         else:
-            for solution_space in solution_spaces:
-                if solution_space == None:
-                    continue
+            init_bases, init_base_vecs, param_tuples = self._findAll_piece_1_multi_proc(solution_spaces, check_val=check_val, poss_vals=poss_vals, multiprocess=multiprocess, find_first=find_first)
+            return self._findAll_piece_2_multi_proc(init_bases, init_base_vecs,param_tuples, check_val=check_val, poss_vals=poss_vals, multiprocess=multiprocess, find_first=find_first)
 
-                base_vec, basis, _, _, param_tuple = solution_space
-                if len(basis) == 0:
-                    if not any([val<0 for val in base_vec._mat]):
-                        sol = base_vec._mat
-                        temp_sol =[int(v) for v in sol]
-                        if check_val:
-                            if isinstance(check_val,int):
-                                try:
-                                    temp_sol[poss_vals.index(check_val)]+=1
-                                except ValueError:
-                                    temp_sol.append(1)
-                                    poss_vals.append(check_val)
-                                    # temp_sol[poss_vals.index(val)]=1
 
-                            elif isinstance(check_val, list):
-                                for val in check_val:
-                                    try:
-                                        temp_sol[poss_vals.index(val)]+=1
-                                    except ValueError:
-                                        temp_sol.append(1)
-                                        poss_vals.append(val)
-                                        # temp_sol[poss_vals.index(val)]=1
-                            elif isinstance(check_val, dict):
-                                for val, num in check_val.iteritems():
-                                    try:
-                                        temp_sol[poss_vals.index(val)]+=1
-                                    except ValueError:
-                                        poss_vals.append(val)
-                                        temp_sol.append(1)
-                                        # temp_sol[poss_vals.index(val)]=1
-                            else:
-                                raise TypeError
-                        self.sols[param_tuple] = [temp_sol]
-                    continue
 
-                manip_basis, base_vec = getManipBasis(basis, base_vec)
-                manip_base_vec = forced_neg_removal(manip_basis, base_vec)
-                single_set_sols = recurse_over_solution_path(manip_basis, manip_base_vec, covered=set())
-                # The returned solutions are lists of numpy data structures, so we cast them back to integers for ease of use
 
-                temp_sols = []
-                for sol in single_set_sols:
-                    fl_sol = [float(v) for v in sol]
-                    if not all([x.is_integer() for x in fl_sol]):
-                        continue
-                    temp_sols.append([int(v) for v in fl_sol])
-                    if check_val:
-                        if isinstance(check_val,int):
-                            try:
-                                temp_sols[-1][poss_vals.index(check_val)]+=1
-                            except ValueError:
-                                for temp_sol in temp_sols:
-                                    temp_sol.append(0)
-                                poss_vals.append(check_val)
-                                temp_sols[-1][poss_vals.index(check_val)]=1
-
-                        elif isinstance(check_val, list):
-                            for val in check_val:
-                                try:
-                                    temp_sols[-1][poss_vals.index(val)]+=1
-                                except ValueError:
-                                    for temp_sol in temp_sols:
-                                        temp_sol.append(0)
-                                    poss_vals.append(val)
-                                    temp_sols[-1][poss_vals.index(val)]=1
-                        elif isinstance(check_val, dict):
-                            for val, num in check_val.iteritems():
-                                try:
-                                    temp_sols[-1][poss_vals.index(val)]+=1
-                                except ValueError:
-                                    poss_vals.append(val)
-                                    for temp_sol in temp_sols:
-                                        temp_sol.append(0)
-                                    temp_sols[-1][poss_vals.index(val)]=1
-                        else:
-                            raise TypeError
-                self.sols[param_tuple] = temp_sols
-        if self.debug:
-            print "Done."
-        temp_sols =self.sols
-        self.sols = {}
-        for key, value in temp_sols.iteritems():
-            if len(value)>0:
-                self.sols[key] = value
-        self.extended_poss_vals = poss_vals
-        return self.sols
+        # means_list = [self.mean]
+        # variances_list = [self.variance]
+        #
+        # if not poss_vals:
+        #     poss_vals = range(self.absolute_min, self.absolute_max+1)
+        # else:
+        #     self.min_score = min(poss_vals)
+        #     self.max_score = max(poss_vals)
+        # self.poss_vals = poss_vals
+        #
+        # if self.variance_precision or self.mean_precision > 0:
+        #     means_list, variances_list = self.validMeansVariances(find_first)
+        #
+        # # mean_variance_pairs = []
+        # # for pair in itertools.product(means_list, variances_list):
+        # #     mean_variance_pairs.append((pair[0], pair[1]))
+        #
+        # if self.debug:
+        #     print str(len(mean_variance_pairs)) + " total mean and variance pairs to check."
+        #
+        # if multiprocess:
+        #     pool = mp.Pool()
+        #     func = functools.partial(multiprocessGetSolutionSpace, self.min_score, self.max_score, self.num_samples,
+        #                              check_val=check_val, poss_vals=poss_vals, debug=self.debug)
+        #     solution_spaces = pool.map(func, mean_variance_pairs)
+        #     pool.close()
+        #     pool.join()
+        # else:
+        #     solution_spaces = []
+        #     for mean_variance_pair in mean_variance_pairs:
+        #         solution_spaces.append(multiprocessGetSolutionSpace(self.min_score, self.max_score, self.num_samples,
+        #                                                             mean_variance_pair,
+        #                                                             check_val=check_val, poss_vals=poss_vals,
+        #                                                             debug=self.debug))
+        # # try:
+        # #     base_vec, basis, _, _, _ = self.getSolutionSpace(check_val=check_val, poss_vals=poss_vals)
+        # #     if self.debug:
+        # #         print "At least one solution exists (possibly invalid due to negative values)"
+        # # except TypeError as E:
+        # #     return None
+        #
+        # if find_first:
+        #     base_vecs = []
+        #     bases = []
+        #
+        #     if multiprocess:
+        #         init_base_vecs = []
+        #         init_bases = []
+        #         for solution_space in solution_spaces:
+        #             if solution_space == None:
+        #                 continue
+        #             base_vec, basis, _, _, param_tuple = solution_space
+        #             if len(basis) == 0:
+        #                 if not any([val<0 for val in base_vec._mat]):
+        #                     sol = base_vec._mat
+        #                     temp_sol =[int(v) for v in sol]
+        #                     if check_val:
+        #                         if isinstance(check_val,int):
+        #                             try:
+        #                                 temp_sol[poss_vals.index(check_val)]+=1
+        #                             except ValueError:
+        #                                 temp_sol.append(1)
+        #                                 poss_vals.append(check_val)
+        #                                 # temp_sol[poss_vals.index(val)]=1
+        #
+        #                         elif isinstance(check_val, list):
+        #                             for val in check_val:
+        #                                 try:
+        #                                     temp_sol[poss_vals.index(val)]+=1
+        #                                 except ValueError:
+        #                                     temp_sol.append(1)
+        #                                     poss_vals.append(val)
+        #                                     # temp_sol[poss_vals.index(val)]=1
+        #                         elif isinstance(check_val, dict):
+        #                             for val, num in check_val.iteritems():
+        #                                 try:
+        #                                     temp_sol[poss_vals.index(val)]+=1
+        #                                 except ValueError:
+        #                                     poss_vals.append(val)
+        #                                     temp_sol.append(1)
+        #                                     # temp_sol[poss_vals.index(val)]=1
+        #                         else:
+        #                             raise TypeError
+        #
+        #                     self.sols[param_tuple] = [temp_sol]
+        #                     self.extended_poss_vals = poss_vals
+        #                     return self.sols
+        #
+        #             init_base_vecs.append(base_vec)
+        #             init_bases.append(basis)
+        #         pool = mp.Pool()
+        #         bases_and_inits = pool.map(multiprocessGetManipBases, zip(init_bases, init_base_vecs))
+        #         for basis_and_init in bases_and_inits:
+        #             base_vecs.append(basis_and_init[1])
+        #             bases.append(basis_and_init[0])
+        #         sol = multiprocess_recurse_find_first(bases, base_vecs, covered=set())
+        #     else:
+        #         for solution_space in solution_spaces:
+        #             if solution_space == None:
+        #                 continue
+        #             base_vec, basis, _, _, param_tuple = solution_space
+        #             if len(basis) == 0:
+        #                 if not any([val<0 for val in base_vec._mat]):
+        #                     sol = base_vec._mat
+        #                     temp_sol =[int(v) for v in sol]
+        #                     if check_val:
+        #                         if isinstance(check_val,int):
+        #                             try:
+        #                                 temp_sol[poss_vals.index(check_val)]+=1
+        #                             except ValueError:
+        #                                 temp_sol.append(1)
+        #                                 poss_vals.append(check_val)
+        #                                 # temp_sol[poss_vals.index(val)]=1
+        #
+        #                         elif isinstance(check_val, list):
+        #                             for val in check_val:
+        #                                 try:
+        #                                     temp_sol[poss_vals.index(val)]+=1
+        #                                 except ValueError:
+        #                                     temp_sol.append(1)
+        #                                     poss_vals.append(val)
+        #                                     # temp_sol[poss_vals.index(val)]=1
+        #                         elif isinstance(check_val, dict):
+        #                             for val, num in check_val.iteritems():
+        #                                 try:
+        #                                     temp_sol[poss_vals.index(val)]+=1
+        #                                 except ValueError:
+        #                                     poss_vals.append(val)
+        #                                     temp_sol.append(1)
+        #                                     # temp_sol[poss_vals.index(val)]=1
+        #                         else:
+        #                             raise TypeError
+        #                     self.sols[param_tuple] = [temp_sol]
+        #                     self.extended_poss_vals = poss_vals
+        #                     return self.sols
+        #             manip_basis, base_vec = getManipBasis(basis, base_vec)
+        #             manip_base_vec = forced_neg_removal(manip_basis, base_vec)
+        #             base_vecs.append(manip_base_vec)
+        #             bases.append(manip_basis)
+        #
+        #         for basis, base_vec in zip(bases, base_vecs):
+        #             sol = recurse_find_first(basis, base_vec)
+        #             if sol:
+        #                 break
+        #     if not sol:
+        #         self.extended_poss_vals = poss_vals
+        #         return None
+        #     # print "Solution: ", type(sol[0]), sol
+        #     sol = [int(v) for v in sol]
+        #     # print "Solution: ", type(sol[0]), sol
+        #
+        #     if check_val:
+        #         if isinstance(check_val,int):
+        #             try:
+        #                 sol[poss_vals.index(check_val)]+=1
+        #             except ValueError:
+        #                 sol.append(1)
+        #                 poss_vals.append(check_val)
+        #                 # temp_sol[poss_vals.index(val)]=1
+        #
+        #         elif isinstance(check_val, list):
+        #             for val in check_val:
+        #                 try:
+        #                     sol[poss_vals.index(val)]+=1
+        #                 except ValueError:
+        #                     sol.append(1)
+        #                     poss_vals.append(val)
+        #                     # temp_sol[poss_vals.index(val)]=1
+        #         elif isinstance(check_val, dict):
+        #             for val, num in check_val.iteritems():
+        #                 try:
+        #                     sol[poss_vals.index(val)]+=1
+        #                 except ValueError:
+        #                     poss_vals.append(val)
+        #                     sol.append(1)
+        #                     # temp_sol[poss_vals.index(val)]=1
+        #         else:
+        #             raise TypeError
+        #
+        #     self.sols = {'_':[sol]}
+        #     if self.debug:
+        #         print "Done."
+        #     self.extended_poss_vals = poss_vals
+        #     return self.sols
+        #
+        # self.sols = {}
+        # init_base_vecs = []
+        # init_bases = []
+        # param_tuples = []
+        # if multiprocess:
+        #     for solution_space in solution_spaces:
+        #         if solution_space == None:
+        #             continue
+        #         base_vec, basis, _, _, param_tuple = solution_space
+        #         if len(basis) == 0:
+        #             if not any([val<0 for val in base_vec._mat]):
+        #                 sol = base_vec._mat
+        #                 temp_sol =[int(v) for v in sol]
+        #                 if check_val:
+        #                     if isinstance(check_val,int):
+        #                         try:
+        #                             temp_sol[poss_vals.index(check_val)]+=1
+        #                         except ValueError:
+        #                             temp_sol.append(1)
+        #                             poss_vals.append(check_val)
+        #                             # temp_sol[poss_vals.index(val)]=1
+        #
+        #                     elif isinstance(check_val, list):
+        #                         for val in check_val:
+        #                             try:
+        #                                 temp_sol[poss_vals.index(val)]+=1
+        #                             except ValueError:
+        #                                 temp_sol.append(1)
+        #                                 poss_vals.append(val)
+        #                                 # temp_sol[poss_vals.index(val)]=1
+        #                     elif isinstance(check_val, dict):
+        #                         for val, num in check_val.iteritems():
+        #                             try:
+        #                                 temp_sol[poss_vals.index(val)]+=1
+        #                             except ValueError:
+        #                                 poss_vals.append(val)
+        #                                 temp_sol.append(1)
+        #                                 # temp_sol[poss_vals.index(val)]=1
+        #                     else:
+        #                         raise TypeError
+        #                 self.sols[param_tuple] = [temp_sol]
+        #
+        #             continue
+        #         init_base_vecs.append(base_vec)
+        #         init_bases.append(basis)
+        #         param_tuples.append(param_tuple)
+        #     pool = mp.Pool()
+        #     if self.debug:
+        #         print "Found " + str(len(param_tuples)) + " potentially viable mean/variance pairs found."
+        #         print "Manipulating Bases and Initial Vectors for Complete Search Guarantee"
+        #     bases_and_inits = pool.map(multiprocessGetManipBases, zip(init_bases, init_base_vecs))
+        #     for basis_and_init, param_tuple in zip(bases_and_inits, param_tuples):
+        #         if self.debug:
+        #             print "Checking for solutions at: " + str(param_tuple)
+        #         manip_base_vec = basis_and_init[1]
+        #         manip_basis = basis_and_init[0]
+        #         single_set_sols = multiprocess_recurse_over_solution_path(manip_basis, manip_base_vec)
+        #         temp_sols = []
+        #         for sol in single_set_sols:
+        #             fl_sol = [float(v) for v in sol]
+        #             if not all([x.is_integer() for x in fl_sol]):
+        #                 continue
+        #             temp_sols.append([int(v) for v in fl_sol])
+        #             if check_val:
+        #                 if isinstance(check_val,int):
+        #                     try:
+        #                         temp_sols[-1][poss_vals.index(check_val)]+=1
+        #                     except ValueError:
+        #                         for temp_sol in temp_sols:
+        #                             temp_sol.append(0)
+        #                         poss_vals.append(check_val)
+        #                         temp_sols[-1][poss_vals.index(check_val)]=1
+        #
+        #                 elif isinstance(check_val, list):
+        #                     for val in check_val:
+        #                         try:
+        #                             temp_sols[-1][poss_vals.index(val)]+=1
+        #                         except ValueError:
+        #                             for temp_sol in temp_sols:
+        #                                 temp_sol.append(0)
+        #                             poss_vals.append(val)
+        #                             temp_sols[-1][poss_vals.index(val)]=1
+        #                 elif isinstance(check_val, dict):
+        #                     for val, num in check_val.iteritems():
+        #                         try:
+        #                             temp_sols[-1][poss_vals.index(val)]+=1
+        #                         except ValueError:
+        #                             poss_vals.append(val)
+        #                             for temp_sol in temp_sols:
+        #                                 temp_sol.append(0)
+        #                             temp_sols[-1][poss_vals.index(val)]=1
+        #                 else:
+        #                     raise TypeError
+        #         self.sols[param_tuple] = temp_sols
+        # else:
+        #     for solution_space in solution_spaces:
+        #         if solution_space == None:
+        #             continue
+        #
+        #         base_vec, basis, _, _, param_tuple = solution_space
+        #         if len(basis) == 0:
+        #             if not any([val<0 for val in base_vec._mat]):
+        #                 sol = base_vec._mat
+        #                 temp_sol =[int(v) for v in sol]
+        #                 if check_val:
+        #                     if isinstance(check_val,int):
+        #                         try:
+        #                             temp_sol[poss_vals.index(check_val)]+=1
+        #                         except ValueError:
+        #                             temp_sol.append(1)
+        #                             poss_vals.append(check_val)
+        #                             # temp_sol[poss_vals.index(val)]=1
+        #
+        #                     elif isinstance(check_val, list):
+        #                         for val in check_val:
+        #                             try:
+        #                                 temp_sol[poss_vals.index(val)]+=1
+        #                             except ValueError:
+        #                                 temp_sol.append(1)
+        #                                 poss_vals.append(val)
+        #                                 # temp_sol[poss_vals.index(val)]=1
+        #                     elif isinstance(check_val, dict):
+        #                         for val, num in check_val.iteritems():
+        #                             try:
+        #                                 temp_sol[poss_vals.index(val)]+=1
+        #                             except ValueError:
+        #                                 poss_vals.append(val)
+        #                                 temp_sol.append(1)
+        #                                 # temp_sol[poss_vals.index(val)]=1
+        #                     else:
+        #                         raise TypeError
+        #                 self.sols[param_tuple] = [temp_sol]
+        #             continue
+        #
+        #         manip_basis, base_vec = getManipBasis(basis, base_vec)
+        #         manip_base_vec = forced_neg_removal(manip_basis, base_vec)
+        #         single_set_sols = recurse_over_solution_path(manip_basis, manip_base_vec, covered=set())
+        #         # The returned solutions are lists of numpy data structures, so we cast them back to integers for ease of use
+        #
+        #         temp_sols = []
+        #         for sol in single_set_sols:
+        #             fl_sol = [float(v) for v in sol]
+        #             if not all([x.is_integer() for x in fl_sol]):
+        #                 continue
+        #             temp_sols.append([int(v) for v in fl_sol])
+        #             if check_val:
+        #                 if isinstance(check_val,int):
+        #                     try:
+        #                         temp_sols[-1][poss_vals.index(check_val)]+=1
+        #                     except ValueError:
+        #                         for temp_sol in temp_sols:
+        #                             temp_sol.append(0)
+        #                         poss_vals.append(check_val)
+        #                         temp_sols[-1][poss_vals.index(check_val)]=1
+        #
+        #                 elif isinstance(check_val, list):
+        #                     for val in check_val:
+        #                         try:
+        #                             temp_sols[-1][poss_vals.index(val)]+=1
+        #                         except ValueError:
+        #                             for temp_sol in temp_sols:
+        #                                 temp_sol.append(0)
+        #                             poss_vals.append(val)
+        #                             temp_sols[-1][poss_vals.index(val)]=1
+        #                 elif isinstance(check_val, dict):
+        #                     for val, num in check_val.iteritems():
+        #                         try:
+        #                             temp_sols[-1][poss_vals.index(val)]+=1
+        #                         except ValueError:
+        #                             poss_vals.append(val)
+        #                             for temp_sol in temp_sols:
+        #                                 temp_sol.append(0)
+        #                             temp_sols[-1][poss_vals.index(val)]=1
+        #                 else:
+        #                     raise TypeError
+        #         self.sols[param_tuple] = temp_sols
+        # if self.debug:
+        #     print "Done."
+        # temp_sols =self.sols
+        # self.sols = {}
+        # for key, value in temp_sols.iteritems():
+        #     if len(value)>0:
+        #         self.sols[key] = value
+        # self.extended_poss_vals = poss_vals
+        # return self.sols
 
 
 
@@ -1082,7 +1097,7 @@ class RecreateData:
         return skews, np.mean(skews), np.std(skews, dtype=np.float64, ddof=1.0)**2
 
 
-    def graphData(self, max_samples=40):
+    def graphData(self, max_samples=20):
 
         fig = plt.figure()
         ax1 = fig.add_subplot(111, projection='3d')
@@ -1159,6 +1174,8 @@ class RecreateData:
         plt.show()
 
     def getDataSimple(self):
+        if self.simpleData:
+            return self.simpleData
         if not self.sols:
             if self.debug:
                 print "No solutions to run analysis over.  NB: graphData() must be run before analyzeSkew()"
@@ -1199,7 +1216,7 @@ if __name__ == "__main__":
     # variance = float(eval(raw_input()))
     # print
 
-    RD = RecreateData(1,7,10,3,4)#(min_score, max_score, num_samples, mean, variance, mean_precision=0.0, variance_precision=0.0)
+    RD = RecreateData(1,7,10,3,4, mean_precision=0.5, variance_precision=0.5)#(min_score, max_score, num_samples, mean, variance, mean_precision=0.0, variance_precision=0.0)
     RD.recreateData(multiprocess=True, find_first=False)
     print RD.getDataSimple()
 
@@ -1207,6 +1224,6 @@ if __name__ == "__main__":
     #     for sol in sol_set:
     #         print sol
 
-    print RD.analyzeSkew()
+    # print RD.analyzeSkew()
 
-    RD.graphData()
+    RD.graphData(max_samples=10)
