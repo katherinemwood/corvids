@@ -16,42 +16,42 @@ The CORVIDS system reconstructs Likert-scale type data, in which every possible 
 
 These operations can be quite computationally intensive. By default, the code runs in multi-process mode to speed up runtime.
 
-#Using the GUI
+# Using the GUI
 
 If you download the compiled version of the program, it runs with a GUI interface.
 
-##Recreating data from summary statistics
+## Recreating data from summary statistics
 
 If you have values you would like to recreate data for, simply enter them in the relevant fields.
 
-###Minimum value
+### Minimum value
 `Minimum value` is the smallest possible value on the scale. For a 1 - 7 scale, the value to enter would be 1.
 
-###Maximum value
+### Maximum value
 `Maximum value` is the largest possible value on the scale. For a 1 - 7 scale, the value to enter would be 7.
 
-###Mean
+### Mean
 `Mean` is the mean (arithmetic average) value of the responses in the data set. It may be entered as a single number or as a mathematical formula (e.g. (5 + 6 + 3 + 1)/4).
 
-###Mean precision
+### Mean precision
 `Mean precision` is the tolerance up to which the program will search for viable means. For instance, entering a mean of 1.5 with a tolerance of 0.1 will cause the program to search all viable values between 1.4 and 1.6. This is useful for getting around issues with rounding, but be aware that a large precision value can add to runtime.
 
-###Variance
+### Variance
 `Variance` is the variance of the dataset. It may be entered as a single number or a mathematical formula. CORVIDS assumes that the variance was calculated according to the [unbiased sample variance](http://mathworld.wolfram.com/SampleVariance.html), the default for most statistical software (including R).
 
-###Variance precision 
+### Variance precision 
 `Variance precision` is the tolerance up to which the program will search for viable variances. For instance, entering a variance of 1.55 with a tolerance of 0.01 will cause the program to search all viable values between 1.54 and 1.56. This is useful for accounting for rounding, but be aware that a large precision value can add to runtime.
 
-###Standard deviation
+### Standard deviation
 `Standard deviation` is the standard deviation of the sample. It may be entered as a single number or a mathematical formula. CORVIDS assumes that the variance was calculated according to the [unbiased sample standard deviation](https://en.wikipedia.org/wiki/Unbiased_estimation_of_standard_deviation), the default for most statistical software (including R).
 
-###Standard deviation precision
+### Standard deviation precision
 `Standard deviation precision` is the tolerance up to which the program will search for viable standard deviations. For instance, entering a standard deviation of 1.55 with a tolerance of 0.01 will cause the program to search all viable values between 1.54 and 1.56. This is useful for accounting for rounding, but be aware that a large precision value can add to runtime.
 
-###Number of subjects
+### Number of subjects
 `Number of subjects` is the number of subjects in the sample, or the number of cases or measurements if there's only one subject.
 
-##Scale format
+## Scale format
 *Note:* This program assumes that you are using an integer scale that spans the minimum to maximum value in steps of size 1. If you have a non-integer scale, you will have to transform the data onto an integer space.
 
 For example, if your scale ranges from 0 to 10 but accepts quarter-values (so 4.75 is a valid choice), then the following steps should be taken:
@@ -72,7 +72,7 @@ So for a 0 to 10 scale with a mean of 4.725 and a variance of 6.12 for 20 subjec
 
 The data returned should then be divided by 4 to recover the original, non-integer values.
 
-##Specifying output and value restrictions
+## Specifying output and value restrictions
 
 There are two global parameters you can toggle on or off: `Print Progress`, in the top-left, determines whether status updates and progress is printed in the output pane. It's encouraged to leave this on.
 
@@ -80,13 +80,13 @@ The program will print the first 100 solutions to the output pane. If multiple v
 
 **NB:** CORVIDS always displays the mean and **variance** for which it found solutions, even if you entered standard deviation. To convert to standard deviation, take the square root of the variance.
 
-###Stop after first solution
+### Stop after first solution
 `Stop After First Solution`, if checked, causes the program to return the first solution that it finds, if such a solution exists. This is useful if you are only interested in determining whether a given set of statistics is possible, rather than interested in getting every possible solution.
 
-###Possible values
+### Possible values
 The `Possible Values` pane lists the values of the scale that are allowed to be in the solutions. By default, this will be all integer values between `minimum value` and `maximum value`. However, if you are interested in exploring the solution space, or testing whether solutions continue to exist if you restrict the scale, you can delete values and re-run the analysis. For instance, you could require solutions to lie between 2 and 6 instead of 1 and 7, if you want to see whether the data can exist without the extreme values on the scale.
 
-###Forced values
+### Forced values
 Similarly, the `Forced Values` pane takes text entry, and allows you to specify any values that are required to be in the solution space. CORVIDS will then only return solutions that contain at least one instance of the required value(s) if only one number is entered. To force at least n instances of a particular value, simply enter n values into the `Forced Values` pane.
 
 **Note:** When values are forced to appear in solutions, the program holds them constant. It will thus suggest that it is looking for solutions at a different mean and standard deviation/variance than what was entered, because it's solving the remainder of the values. The resulting solutions will satisfy the original mean and standard deviation that was entered.
@@ -97,34 +97,34 @@ If a value is removed from the `Possible Values` and then subsequently entered i
 
 For both `Possible Values` and `Forced Values`, input should be integers separated by spaces or commas. Strings, decimals, and other degenerate inputs are ignored.
 
-##Saving results and loading previous results
+## Saving results and loading previous results
 
 There are five different options under the `File` menu.
 
-###Load settings
+### Load settings
 `Load settings` allows you to load in previously settings saved to an .rd file (`minimum value`, `maximum value`, `possible values`, `forced values`, etc.) so that you don't have to enter them again. Simply click `Browse`, navigate to the correct file, select it, then click `OK` to load.
 
-###Save settings
+### Save settings
 `Save settings` saves the current settings to an .rd file.
 
-###Load model
+### Load model
 `Load model` is much like `Load settings`, except it loads a previously saved .rd model (settings + solutions).
 
-###Save model
+### Save model
 `Save model` saves not only the settings, but also the solutions to a .rd file.
 
-###Save data
+### Save data
 `Save data` saves all the solutions to a .rd file. Solutions are saved with the mean and variance that generated the solution, followed by the solution in list form. For example, `[1, 1, 2, 3, 3, 4]` means that one possible solution has two subjects responding `1`, one subject responding `2`, two subjects responding `3`, and one subject responding `4`.
 
-#Using the source
+# Using the source
 
-##Requirements
+## Requirements
 
 [SymPy](http://www.sympy.org/en/index.html)  
 [NumPy](http://www.numpy.org/)  
 [matplotlib](https://matplotlib.org/)  
 
-##Files contained in this package
+## Files contained in this package
 
 `RecreateData.py` is the only file you'll need to interact with. It contains the class `RecreateData` and methods for generating and manipulating solutions.
 
@@ -194,16 +194,16 @@ rd.graphData()
 ```
 ![](sample_fig.png)
 
-#Usage notes
+# Usage notes
 
-##The precision argument
+## The precision argument
 
 Giving the program some tolerance will help it find the precise variance and mean value it needs. Any time there is precision loss, which will be any time a value rather than a mathematical formula is entered for variance, add tolerance. If not enough precision is allowed, the program will not be able to find otherwise valid solutions to the numbers given. 
 
-##Runtime 
+## Runtime 
 
 The larger the range of the scale and the more subjects there are, the longer the program will take to run. For a particularly large number of solutions or many combinations of means and variances to test, this could mean a considerable waiting period. 
 
-##Opening the help docs
+## Opening the help docs
 
 If you are using a Mac and your default web browser is Chrome, you will notice that the docs do not open in Chrome, but instead in another browser. There is a bug in Chrome with Mac OSX High Sierra that prevents files from opening in the browser, if Chrome is already running. This is a work-around so that the docs will still open.
