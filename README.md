@@ -8,13 +8,6 @@ For help, check out the documentation or [this pair](https://katherinemwood.gith
 
 [Wilner, S. A., Wood, K., & Simons, D.J. (2018). Complete recovery of values in diophantine systems (CORVIDS).](https://osf.io/rvgqk/)
 
----
-title: "README"
-output:
-  html_document: 
-    toc: true
-  pdf_document: default
----
 # Introduction
 
 ![](Corvid.png) This documentation describes how to run and use the Python implementation of the CORVIDS data recovery system. Please see the accompanying paper for the details of the implementation.
